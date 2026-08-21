@@ -1,6 +1,6 @@
 # CloudBoard
 
-[![CI](https://github.com/OWNER/cloudboard/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/cloudboard/actions/workflows/ci.yml)
+[![CI](https://github.com/Vineeth-28/cloudboard/actions/workflows/ci.yml/badge.svg)](https://github.com/Vineeth-28/cloudboard/actions/workflows/ci.yml)
 
 > A minimal user-directory service, built to demonstrate a realistic, production-style
 > DevOps delivery pipeline — from `git push` to a monitored, logged, rolling-updated
