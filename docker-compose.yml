@@ -1,0 +1,106 @@
+name: cloudboard
+
+# ---------------------------------------------------------------------------
+# Local development stack: frontend (Nginx) -> backend (Node/Express) -> mongo
+# Mirrors the production request flow from Phase 0's architecture diagram,
+# just running on one machine instead of across a cluster.
+#
+# Quick start:
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# This file is for local development. It intentionally does NOT enable
+# MongoDB authentication (see the mongo service below) - that's a deliberate
+# scope choice for local dev convenience, not something we'd do in a shared
+# or production environment. Production auth/secrets are handled via
+# Kubernetes Secrets in Phase 8/14.
+# ---------------------------------------------------------------------------
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: cloudboard-mongo
+    restart: unless-stopped
+    ports:
+      # Exposed to the host too, so you can still point MongoDB Compass /
+      # mongosh at localhost:27017 if you want to poke at the data directly.
+      - "27017:27017"
+    volumes:
+      # Named volume, NOT a bind mount - Mongo's data files persist across
+      # `docker compose down` / `up` cycles but live in Docker's own storage,
+      # not scattered into the project directory.
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cloudboard-net
+
+  backend:
+    build:
+      context: ./application/backend
+      dockerfile: Dockerfile
+    container_name: cloudboard-backend
+    restart: unless-stopped
+    environment:
+      # Must match the Dockerfile's ENV NODE_ENV=production - this is a
+      # production-shaped image (npm ci --omit=dev), so pino-pretty (a
+      # devDependency, intentionally not installed) isn't available.
+      # Setting "development" here would make the logger try to load it
+      # and crash on startup. Structured JSON logs in this container are
+      # correct anyway - that's what Loki/Promtail expect in Phase 13.
+      NODE_ENV: production
+      PORT: "3000"
+      # "mongo" here is the service name above - Docker Compose's embedded
+      # DNS resolves it to the mongo container's internal IP on this
+      # network. This is exactly why application/backend/.env.example
+      # documents two different MONGO_URI values for "docker compose" vs
+      # "host machine" - the hostname differs by context.
+      MONGO_URI: mongodb://mongo:27017/cloudboard
+      LOG_LEVEL: info
+      CORS_ORIGIN: "*"
+    depends_on:
+      mongo:
+        # Waits for Mongo's healthcheck to pass, not just for the container
+        # to start - "started" and "ready to accept connections" are
+        # different things, and this is exactly the gap that non-blocking
+        # startup + retry logic in db/connection.js was built to tolerate
+        # even if this condition weren't here.
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{if(r.status!==200)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - cloudboard-net
+    # No ports: published to the host on purpose in the "production-shaped"
+    # version of this file - only Nginx should be a public entrypoint.
+    # Uncomment below if you want to hit the backend directly for debugging:
+    # ports:
+    #   - "3000:3000"
+
+  frontend:
+    build:
+      context: ./application/frontend
+      dockerfile: Dockerfile
+    container_name: cloudboard-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - cloudboard-net
+
+volumes:
+  mongo_data:
+
+networks:
+  cloudboard-net:
+    driver: bridge

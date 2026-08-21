@@ -1,0 +1,24 @@
+# Never send these into the Docker build context - keeps the image small,
+# the build fast, and secrets out entirely.
+
+node_modules
+npm-debug.log*
+
+# Secrets - .env must NEVER end up baked into an image layer. Env vars are
+# injected at container runtime instead (docker-compose environment:,
+# Kubernetes ConfigMap/Secret).
+.env
+.env.*
+!.env.example
+
+# Not needed at runtime
+tests
+coverage
+.eslintrc.json
+README.md
+.git
+.gitignore
+
+# Editor/OS junk
+.vscode
+.DS_Store
