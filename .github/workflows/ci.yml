@@ -160,8 +160,8 @@ jobs:
           #     UI, but never safe to depend on for a real deployment -
           #     "latest" today is not the same image as "latest" tomorrow.
           tags: |
-            ${{ env.DOCKERHUB_NAMESPACE }}/cloudboard-backend:${{ github.sha }}
-            ${{ env.DOCKERHUB_NAMESPACE }}/cloudboard-backend:latest
+            ${{ env.DOCKERHUB_USERNAME }}/cloudboard-backend:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/cloudboard-backend:latest
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
@@ -172,7 +172,7 @@ jobs:
           context: ./application/frontend
           push: true
           tags: |
-            ${{ env.DOCKERHUB_NAMESPACE }}/cloudboard-frontend:${{ github.sha }}
-            ${{ env.DOCKERHUB_NAMESPACE }}/cloudboard-frontend:latest
+            ${{ env.DOCKERHUB_USERNAME}}/cloudboard-frontend:${{ github.sha }}
+            ${{ env.DOCKERHUB_USERNAME }}/cloudboard-frontend:latest
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
