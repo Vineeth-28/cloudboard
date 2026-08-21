@@ -5,6 +5,14 @@
 # Dockerfile is intentionally simple: copy static files onto an Nginx image.
 FROM nginx:1.27-alpine
 
+# Same reasoning as the backend Dockerfile: the base image's Alpine package
+# snapshot lags behind whatever's actually patched upstream (openssl,
+# libxml2, libpng, musl, zlib, etc. all had newer fixed versions available
+# than what shipped in the image). Upgrading at build time means every
+# rebuild picks up current patches instead of freezing on the image's
+# original release date.
+RUN apk update && apk upgrade --no-cache
+
 # Remove the default Nginx welcome config/content so it can't accidentally
 # be served instead of ours.
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
