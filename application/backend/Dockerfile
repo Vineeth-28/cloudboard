@@ -39,6 +39,10 @@ FROM node:20-alpine AS runtime
 # dumb-init fixes both. Without it, `docker stop` / Kubernetes SIGTERM can
 # hang until the kill timeout, defeating the graceful shutdown we built into
 # server.js.
+# Always pull the latest patched OS packages at build time - the base
+# image's package snapshot can lag behind fixed CVEs (e.g. an openssl
+# patch released after the base image itself was published). `apk upgrade`
+# here means every rebuild picks up whatever's currently patched upstream.
 RUN apk update && apk upgrade --no-cache && apk add --no-cache dumb-init
 
 WORKDIR /app
@@ -52,18 +56,24 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Bring in production node_modules from the deps stage - not reinstalled,
 # just copied, so we don't pay the npm install cost twice.
 COPY --from=deps /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup package.json ./
 COPY --chown=appuser:appgroup src ./src
 
-# npm/npx/corepack/yarn nahi chahiye runtime mein - deps already install
-# ho chuki hain deps stage mein, container sirf "node src/server.js" chalata hai
+# The base node:alpine image bundles npm, npx, corepack, and yarn - none of
+# which the running application needs (dependencies were already installed
+# in the deps stage; the container just runs `node src/server.js`). These
+# tools drag in their own large tree of transitive dependencies (npm alone
+# bundles tar, minimatch, glob, cross-spawn, and more), which is pure
+# unnecessary attack surface in a production image. Stripping them out is
+# what actually fixes the majority of Trivy's node-pkg findings - those
+# vulnerabilities live in npm's own bundled deps, not in anything this app
+# uses at runtime.
 RUN rm -rf \
     /usr/local/lib/node_modules/npm \
     /usr/local/bin/npm \
     /usr/local/bin/npx \
     /usr/local/bin/corepack \
     /opt/yarn-v*
-COPY --chown=appuser:appgroup package.json ./
-COPY --chown=appuser:appgroup src ./src
 
 ENV NODE_ENV=production
 ENV PORT=3000
