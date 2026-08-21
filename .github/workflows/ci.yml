@@ -105,7 +105,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=frontend
 
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: cloudboard-backend:${{ github.sha }}
           format: table
