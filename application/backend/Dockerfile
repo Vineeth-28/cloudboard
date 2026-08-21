@@ -39,7 +39,7 @@ FROM node:20-alpine AS runtime
 # dumb-init fixes both. Without it, `docker stop` / Kubernetes SIGTERM can
 # hang until the kill timeout, defeating the graceful shutdown we built into
 # server.js.
-RUN apk add --no-cache dumb-init
+RUN apk update && apk upgrade --no-cache && apk add --no-cache dumb-init
 
 WORKDIR /app
 
@@ -52,6 +52,16 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Bring in production node_modules from the deps stage - not reinstalled,
 # just copied, so we don't pay the npm install cost twice.
 COPY --from=deps /app/node_modules ./node_modules
+COPY --chown=appuser:appgroup src ./src
+
+# npm/npx/corepack/yarn nahi chahiye runtime mein - deps already install
+# ho chuki hain deps stage mein, container sirf "node src/server.js" chalata hai
+RUN rm -rf \
+    /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /usr/local/bin/corepack \
+    /opt/yarn-v*
 COPY --chown=appuser:appgroup package.json ./
 COPY --chown=appuser:appgroup src ./src
 
