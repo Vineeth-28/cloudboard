@@ -1,5 +1,7 @@
 # CloudBoard
 
+[![CI](https://github.com/OWNER/cloudboard/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/cloudboard/actions/workflows/ci.yml)
+
 > A minimal user-directory service, built to demonstrate a realistic, production-style
 > DevOps delivery pipeline — from `git push` to a monitored, logged, rolling-updated
 > deployment on Kubernetes.
@@ -68,11 +70,23 @@ docker compose logs -f backend
 docker compose exec backend sh
 ```
 
+## CI Pipeline
+
+Every pull request and every push to `main` triggers `.github/workflows/ci.yml`:
+
+1. **Lint & Test** — installs backend dependencies, runs ESLint, runs the Jest suite.
+2. **Docker Build & Security Scan** — only runs if step 1 passes. Builds both the
+   backend and frontend images with Buildx, then scans each with
+   [Trivy](https://github.com/aquasecurity/trivy) for CRITICAL/HIGH vulnerabilities.
+   A vulnerable image fails the pipeline before it ever reaches a registry.
+
+See the workflow file itself for the full reasoning behind each step.
+
 ## Roadmap (build phases)
 
 - [x] Phase 2 — Application (Node/Express + MongoDB)
 - [x] Phase 3 — Docker & Docker Compose
-- [ ] Phase 4 — CI pipeline (GitHub Actions)
+- [x] Phase 4 — CI pipeline (GitHub Actions)
 - [ ] Phase 5 — Container registry (AWS ECR)
 - [ ] Phase 6 — Terraform infrastructure
 - [ ] Phase 7 — Ansible configuration management
