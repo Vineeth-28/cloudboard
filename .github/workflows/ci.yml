@@ -108,25 +108,26 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      - name: Install Trivy
+        # Installing the CLI directly instead of using the aquasecurity/
+        # trivy-action Marketplace wrapper - that action's release tags
+        # change over time and pinning to a stale one breaks the pipeline
+        # with a resolution error. The official install script always
+        # fetches a real, current release, so there's no tag to keep in
+        # sync by hand.
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+          trivy --version
+
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: cloudboard-backend:${{ github.sha }}
-          format: table
-          # Only fail the build on CRITICAL/HIGH - lower-severity findings
-          # are reported but don't block the pipeline. This is a real
-          # trade-off teams make: block on what's genuinely dangerous,
-          # don't let noisy low-severity CVEs stall every deploy.
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+        # Only fail the build on CRITICAL/HIGH - lower-severity findings are
+        # reported but don't block the pipeline. This is a real trade-off
+        # teams make: block on what's genuinely dangerous, don't let noisy
+        # low-severity CVEs stall every deploy.
+        run: trivy image --severity CRITICAL,HIGH --exit-code 1 cloudboard-backend:${{ github.sha }}
 
       - name: Scan frontend image (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: cloudboard-frontend:${{ github.sha }}
-          format: table
-          severity: CRITICAL,HIGH
-          exit-code: "1"
+        run: trivy image --severity CRITICAL,HIGH --exit-code 1 cloudboard-frontend:${{ github.sha }}
 
       # ---------------------------------------------------------------
       # Push to Docker Hub - only on push to main, never on PRs.
